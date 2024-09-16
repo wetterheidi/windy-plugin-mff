@@ -286,7 +286,7 @@
         /** Eventhandler for the click on the map*/
         destroyed = false;
 
-        singleclick.on('windy-plugin-upper-winds', async ev => {
+        singleclick.on('windy-plugin-mff', async ev => {
             console.log('In onMount singleclick');
             if (destroyed == false) {
                 Utility.checkOverlay();
