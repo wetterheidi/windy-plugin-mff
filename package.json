@@ -1,7 +1,7 @@
  {
-    "name": "windy-plugin-mff-winds",
+    "name": "windy-plugin-mff",
     "version": "0.0.1",
-    "description": "MFF winds",
+    "description": "MFF tools",
     "main": "dist/plugin.min.js",
     "type": "module",
     "scripts": {
@@ -11,7 +11,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/wetterheidi/windy-plugin-mff-winds.git"
+        "url": "git+https://github.com/wetterheidi/windy-plugin-mff.git"
     },
     "keywords": [
         "windy",

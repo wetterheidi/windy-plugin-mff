@@ -10,7 +10,7 @@ const config: ExternalPluginConfig = {
     repository: 'https://github.com/wetterheidi/windy-plugin-mff.git',
     desktopUI: 'rhpane',
     mobileUI: 'fullscreen',
-    routerPath: '/mff',
+    routerPath: '/mff-tools',
     desktopWidth: 500,
     listenToSingleclick: true,
     addToContextmenu: false,
