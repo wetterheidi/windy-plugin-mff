@@ -13,7 +13,7 @@ const config: ExternalPluginConfig = {
     routerPath: '/mff-tools',
     desktopWidth: 500,
     listenToSingleclick: true,
-    addToContextmenu: false,
+    addToContextmenu: true,
     private: true
 };
 

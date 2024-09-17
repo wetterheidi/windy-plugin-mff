@@ -243,8 +243,13 @@ export class Utility {
   static checkOverlay() {
     /* Check overlay and change to wind overlay if nowcasting overlays are preset*/
     const overlay: string = windyStore.get('overlay');
-    if (overlay == 'satellite' || overlay == 'radar' || overlay == 'radarPlus') {
+    if (overlay == 'satellite' || overlay == 'radar') {
       alert('Windy overlay is automatically set to wind \n as ' + overlay + ' layer is not a model overlay.');
+      windyStore.set('overlay', 'wind');
+    }
+    if (overlay == 'radarPlus') {
+      alert('Windy overlay is automatically set to wind \n as ' + overlay + ' layer is not a model overlay.');
+      //setTimeout(windyStore.set('overlay', 'wind'), 3000);
       windyStore.set('overlay', 'wind');
     }
   }
