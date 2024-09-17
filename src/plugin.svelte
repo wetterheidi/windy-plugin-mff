@@ -138,20 +138,45 @@
                 </div>
             </h4>
         </div>
+        <hr />
+        <div style="text-align:center">
+            <button on:click={() => downloadData(Format.FMT_CSV)}>
+                Download CSV
+            </button>
+            <button on:click={() => downloadData(Format.FMT_JSON)}>
+                Download JSON
+            </button>
+            <h4></h4>
+            <button on:click={() => downloadData(Format.FMT_HEIDIS)}>
+                Download HEIDIS
+            </button>
+            <button on:click={() => downloadData(Format.FMT_ATAK)}>
+                Download ATAK
+            </button>
+        </div>
     {/if}
     <hr />
 </section>
 
 <script lang="ts">
-    import bcast from '@windy/broadcast';
-    import { map } from '@windy/map';
-    import { onDestroy, onMount } from 'svelte';
-    import config from './pluginConfig';
-    import { singleclick } from '@windy/singleclick';
-    import { UpperWind } from './classes/UpperWind.class';
-    import windyStore from '@windy/store';
-    import { LatLon } from '@windycom/plugin-devtools/types/interfaces';
-    import { Utility } from './classes//Utility.class';
+        import bcast from "@windy/broadcast";
+    import { map } from "@windy/map";
+    import { onDestroy, onMount } from "svelte";
+    import config from "./pluginConfig";
+    import { singleclick } from "@windy/singleclick";
+    import { UpperWind } from "./classes/UpperWind.class";
+    import windyStore from "@windy/store";
+    // see https://www.npmjs.com/package/export-to-csv
+    import { mkConfig, generateCsv, asBlob } from "export-to-csv";
+    import { LatLon } from "@windycom/plugin-devtools/types/interfaces";
+    import { Utility } from "./classes//Utility.class";
+
+    const Format = {
+        FMT_CSV: 1,
+        FMT_JSON: 2,
+        FMT_HEIDIS: 3,
+        FMT_ATAK: 4,
+    };
 
     let ready = false;
     let flightLevels: any[] = [];
@@ -354,6 +379,153 @@
         elevation =
             (upperwind.elevation * 3.28084).toFixed(0) + ' ft/ ' + upperwind.elevation + ' m';
         ready = true;
+    }
+     /** Download the Data  */
+    // https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
+    // "ES6+ version for 2021; no 1MB limit either:"
+    const saveTemplateAsFile = (
+        filename: string,
+        blob: Blob,
+        mimeType: string,
+    ) => {
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = window.URL.createObjectURL(blob);
+        link.dataset.downloadurl = [mimeType, link.download, link.href].join(
+            ":",
+        );
+
+        const evt = new MouseEvent("click", {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        link.dispatchEvent(evt);
+        link.remove();
+    };
+
+    function downloadData(format: any) {
+        if (format === Format.FMT_CSV) {
+            const csvConfig = mkConfig({
+                useKeysAsHeaders: true,
+            });
+            const csv = generateCsv(csvConfig)(flightLevels);
+            const blob = asBlob(csvConfig)(csv);
+            saveTemplateAsFile(
+                forecastDateString + "_" + forecastModel + ".csv",
+                blob,
+                "text/csv;charset=utf-8",
+            );
+        }
+        if (format === Format.FMT_JSON) {
+            const data = JSON.stringify(flightLevels, undefined, 2);
+            const blob = new Blob([data], { type: "text/json" });
+            saveTemplateAsFile(
+                forecastDateString + "_" + forecastModel + ".json",
+                blob,
+                "text/json",
+            );
+        }
+        if (format === Format.FMT_HEIDIS) {
+            // which keys to extract into columns, by field order
+
+            const sequence = [
+                { key: "pressure", header: "p", unit: "hPa" },
+                { key: "height", header: "hAMSL", unit: altitudeUnit },
+                { key: "heightAGL", header: "hAGL", unit: altitudeUnit },
+                { key: "temperature", header: "T", unit: temperatureUnit },
+                { key: "dewPointt", header: "Td", unit: temperatureUnit },
+                { key: "wind_u", header: "u", unit: "m/s" },
+                { key: "wind_v", header: "v", unit: "m/s" },
+                { key: "windDir", header: "Dir", unit: "deg" },
+                { key: "windSp", header: "Spd", unit: windUnit },
+            ];
+
+            const lineSeparator = `\n`;
+            const fieldSeparator = " ";
+            const rowConverter = (row: any) => {
+                return sequence
+                    .map((field) => `${row[field.key]}` + fieldSeparator)
+                    .join("")
+                    .slice(0, -1);
+            };
+
+            const data = flightLevels.map(rowConverter).join(lineSeparator);
+            const columnNames =
+                sequence
+                    .map((fd) => fd.header + fieldSeparator)
+                    .join("")
+                    .slice(0, -1) + lineSeparator;
+            const units =
+                sequence
+                    .map((fd) => fd.unit + fieldSeparator)
+                    .join("")
+                    .slice(0, -1) + lineSeparator;
+
+            const blob = new Blob([columnNames + units + data], {
+                type: "text/plain",
+            });
+            saveTemplateAsFile(
+                forecastDateString + "_" + forecastModel + "_HEIDIS.txt",
+                blob,
+                "text/plain",
+            );
+        }
+        if (format === Format.FMT_ATAK) {
+            // which keys to extract into columns, by field order
+
+            if (
+                altitudeUnit == "m" ||
+                settings.referenceLevel == "AMSL" ||
+                settings.increment != "1000"
+            ) {
+                alert(
+                    "You have to change altitude unit to feet,\n the reference level to AGL and \n the interpolation step to 1000 \n before downloading ATAK files!",
+                );
+                return;
+            }
+
+            const sequence = [
+                { key: "heightAGL", header: "Alt", unit: altitudeUnit + "AGL" },
+                { key: "windDir", header: "Dir", unit: "" },
+                { key: "windSp", header: "Spd", unit: "" },
+            ];
+
+            const lineSeparator = `\n`;
+            const fieldSeparator = "\t";
+            const rowConverter = (row: any) => {
+                return sequence
+                    .map((field) => `${row[field.key]}` + fieldSeparator)
+                    .join("")
+                    .slice(0, -1);
+            };
+
+            const data = flightLevels
+                .slice()
+                .reverse()
+                .map(rowConverter)
+                .join(lineSeparator);
+            const columnNames =
+                sequence
+                    .map((fd) => fd.header + fieldSeparator)
+                    .join("")
+                    .slice(0, -1) + lineSeparator;
+            const units =
+                sequence
+                    .map((fd) => fd.unit + fieldSeparator)
+                    .join("")
+                    .slice(0, -1) + lineSeparator;
+
+            const blob = new Blob([columnNames + units + data], {
+                type: "text/plain",
+            });
+            saveTemplateAsFile(
+                forecastDateString + "_" + forecastModel + "_ATAK.txt",
+                blob,
+                "text/plain",
+            );
+        }
     }
 </script>
 
