@@ -191,11 +191,16 @@
     /* Settings for temperature*/
     let temperatureUnit: string = Utility.findOutTemperatureUnit(273.15); //Kelvin in raw data
     let freezingLevelAt: number = 0;
-    if (temperatureUnit === '°C') {
-        freezingLevelAt = 0;
-    } else if (temperatureUnit === '°F') {
-        freezingLevelAt = 32;
+    function freezingLevel() {
+        if (temperatureUnit === '°C') {
+            freezingLevelAt = 0;
+        } else if (temperatureUnit === '°F') {
+            freezingLevelAt = 32;
+        }
+        return freezingLevelAt;
     }
+    freezingLevelAt = freezingLevel();
+
     /* Settings for wind*/
     let windUnit: string = Utility.findOutWindUnit(10); // m/s in raw data
 
@@ -294,7 +299,7 @@
             await upperwind.handleEvent(_params); // Wait for handleEvent to complete
             assignAnalysis(upperwind);
             popup.setContent(clickLocation);
-            map.setView(new L.LatLng(_params.lat, _params.lon),11);
+            map.setView(new L.LatLng(_params.lat, _params.lon), 11);
         });
     };
 
@@ -304,8 +309,7 @@
 
         windyStore.set('overlay', 'wind');
         //Koordinaten Bishop
-        map.setView(new L.LatLng(33.110833, -112.271944),11);
-       
+        map.setView(new L.LatLng(33.110833, -112.271944), 11);
 
         singleclick.on('windy-plugin-mff', async ev => {
             console.log('In onMount singleclick');
@@ -320,7 +324,7 @@
             await upperwind.handleEvent(ev); // Wait for handleEvent to complete
             assignAnalysis(upperwind);
             popup.setContent(clickLocation);
-            map.setView(new L.LatLng(position.lat, position.lon),11);
+            map.setView(new L.LatLng(position.lat, position.lon), 11);
         });
         bcast.on('pluginOpened', async () => {
             if (position === undefined) return;
@@ -361,6 +365,11 @@
 
     /* Assigns the Analysis to a location and a model*/
     function assignAnalysis(upperwind: UpperWind) {
+        temperatureUnit = Utility.findOutTemperatureUnit(0);
+        altitudeUnit = Utility.findOutAltitudeUnit(1000);
+        windUnit = Utility.findOutWindUnit(10);
+        freezingLevelAt = freezingLevel();
+
         clickLocation = upperwind.clickLocation;
         flightLevels = upperwind.flightLevels;
         filteredFlightLevels = flightLevels.filter(
