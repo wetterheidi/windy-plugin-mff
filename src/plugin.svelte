@@ -309,7 +309,7 @@
 
         windyStore.set('overlay', 'wind');
         //Koordinaten Bishop
-        map.setView(new L.LatLng(33.110833, -112.271944), 11);
+        map.setView(new L.LatLng(35.292778, -117.473889), 11);
 
         singleclick.on('windy-plugin-mff', async ev => {
             console.log('In onMount singleclick');
