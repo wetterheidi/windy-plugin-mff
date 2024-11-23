@@ -11,6 +11,8 @@
 
     {#if !ready}
         <h4><strong>Click on map to generate an upper wind table</strong></h4>
+    {:else if errorHandlerOutput}
+         <h4><strong>No forecast available for {forecastDateString}</strong></h4>
     {:else}
         <h4>
             <strong>Location: </strong><br />
@@ -223,11 +225,16 @@
 
     let lowerAltitudeInput: string = '0';
     let upperAltitudeInput: string = '3000';
+    let errorHandlerOutput: boolean = false;
 
     //On settings changed, recalculate upper winds table
     $: {
         upperwind._lowerLevel = lowerAltitudeInput;
         upperwind._upperLevel = upperAltitudeInput;
+
+        errorHandlerOutput = false;
+        errorHandlerOutput=upperwind._errorhandler;
+        console.log(errorHandlerOutput);
 
         /* create Arrays for mean winds*/
         const heightAGLArray = flightLevels.map(row => row.heightAGL);
@@ -309,7 +316,7 @@
 
         windyStore.set('overlay', 'wind');
         //Koordinaten Bishop
-        map.setView(new L.LatLng(35.292778, -117.473889), 11);
+        map.setView(new L.LatLng(48.017909, 11.192358), 11);
 
         singleclick.on('windy-plugin-mff', async ev => {
             console.log('In onMount singleclick');
@@ -383,6 +390,7 @@
         let day = forecastDate.getDate();
         let hours = forecastDate.getHours();
         forecastDateString = year + '-' + month + '-' + day + ' ' + hours + ':00 loc ';
+
         forecastModel = upperwind.model;
         elevation =
             (upperwind.elevation * 3.28084).toFixed(0) + ' ft/ ' + upperwind.elevation + ' m';
