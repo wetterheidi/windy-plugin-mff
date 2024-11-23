@@ -2,7 +2,7 @@ import type { ExternalPluginConfig } from '@windy/interfaces';
 
 const config: ExternalPluginConfig = {
     name: 'windy-plugin-mff',
-    version: '0.0.1',
+    version: '0.0.2',
     icon: '⚔',
     title: 'MFF tools',
     description: 'Show upper winds, temperature and humidity at a given position',
