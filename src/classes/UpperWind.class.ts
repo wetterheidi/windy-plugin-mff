@@ -113,7 +113,7 @@ export class UpperWind {
             this._forecastDate = weatherData.data.data.hours[this._forecastColumn];
             this._model = weatherData.data.header.model;
             this.updateWeatherStats(weatherData.data); // Interpret the data
-            this._errorhandler = false; 
+            this._errorhandler = false;
         } catch (error) {
             console.error('* * * An error occurred:', error);
             this._errorhandler = true;
@@ -140,7 +140,14 @@ export class UpperWind {
 
     /** Call the Windy API for the sounding forecast */
     private fetchData(lat: any, lon: any, product: any) {
-        return windyFetch.getMeteogramForecastData(product, { lat, lon, step:1, extended:true});
+        const timediff = this._timestamp - Date.now();
+        console.log('Timestamp' + timediff);
+        /** Check if user has a premium account and timestep 1 hour is available*/
+        if (store.get('subscription') === 'premium' && timediff < 400000000) {
+            return windyFetch.getMeteogramForecastData(product, { lat, lon, step: 1, extended: true });
+        } else {
+            return windyFetch.getMeteogramForecastData(product, { lat, lon, extended: true });
+        }
     }
 
     /**
