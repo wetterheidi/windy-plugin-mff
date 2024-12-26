@@ -27,7 +27,9 @@ export class UpperWind {
     /** Forecast timestamp */
     private _timestamp: number = Date.now();
     /** Terrain elevation */
-    private _elevation = 0;
+    private _elevation = 0; 
+    /** Init time of model */
+    private _initTime = 0;
     /** Step (i.e. height increment to interpolate) */
     public _step = 0;
     /** Reference level for altitude */
@@ -114,6 +116,17 @@ export class UpperWind {
             this._model = weatherData.data.header.model;
             this.updateWeatherStats(weatherData.data); // Interpret the data
             this._errorhandler = false;
+
+            // Error handling for wrong time/data tables
+            const timediff = this._timestamp - this._initTime;
+            //console.log('*****************Timestamp' + timediff + 'Modell: ' + this._model);
+            if (this._model == "ICON-GLOBAL" && timediff > 482400000) {
+                this._errorhandler = true;
+            } else if (this._model == "ECMWF_HRES" && timediff > 42000000) {
+                this._errorhandler = true;
+            } else if (this._model == "NOAA-GFS" && timediff > 345000000) {
+                this._errorhandler = true;
+            }
         } catch (error) {
             console.error('* * * An error occurred:', error);
             this._errorhandler = true;
@@ -143,7 +156,7 @@ export class UpperWind {
         const timediff = this._timestamp - Date.now();
         console.log('Timestamp' + timediff);
         /** Check if user has a premium account and timestep 1 hour is available*/
-        if (store.get('subscription') === 'premium' && timediff < 400000000) {
+        if (store.get('subscription') === 'premium' && timediff < 432000000) {
             return windyFetch.getMeteogramForecastData(product, { lat, lon, step: 1, extended: true });
         } else {
             return windyFetch.getMeteogramForecastData(product, { lat, lon, extended: true });
@@ -159,6 +172,7 @@ export class UpperWind {
     private updateWeatherStats = (weatherData: MeteogramDataPayload) => {
         this._rawdata = []; // Array to store data for each layer
         this._elevation = weatherData.header.elevation; //Pick elevation from windy API
+        this._initTime = weatherData.header.updateTs; //Init of model
         // console.log('_____________' , JSON.stringify(weatherData.header)); //Code to find out the structure of weatherData.header
 
         // Loop over all properties in weatherData.data.data
