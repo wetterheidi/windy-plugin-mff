@@ -122,7 +122,7 @@ export class UpperWind {
             //console.log('*****************Timestamp' + timediff + 'Modell: ' + this._model);
             if (this._model == "ICON-GLOBAL" && timediff > 482400000) {
                 this._errorhandler = true;
-            } else if (this._model == "ECMWF_HRES" && timediff > 42000000) {
+            } else if (this._model == "ECMWF-HRES" && timediff > 462000000) {
                 this._errorhandler = true;
             } else if (this._model == "NOAA-GFS" && timediff > 345000000) {
                 this._errorhandler = true;
