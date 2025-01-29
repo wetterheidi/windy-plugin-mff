@@ -12,7 +12,7 @@
     {#if !ready}
         <h4><strong>Click on map to generate an upper wind table</strong></h4>
     {:else if errorHandlerOutput}
-         <h4><strong>No forecast available for {forecastDateString}</strong></h4>
+        <h4><strong>No forecast available for {forecastDateString}</strong></h4>
     {:else}
         <h4>
             <strong>Location: </strong><br />
@@ -233,7 +233,7 @@
         upperwind._upperLevel = upperAltitudeInput;
 
         errorHandlerOutput = false;
-        errorHandlerOutput=upperwind._errorhandler;
+        errorHandlerOutput = upperwind._errorhandler;
         console.log('Errorhandler: ' + errorHandlerOutput);
 
         /* create Arrays for mean winds*/
@@ -285,7 +285,7 @@
 
     /* Add layer for lines to the map*/
     var activeLayer = L.featureGroup().addTo(map);
-    var popup = L.popup({ autoClose: false, closeOnClick: false, closeButton: false });
+    var popup = L.popup({ autoClose: false, closeOnClick: true, closeButton: true });
 
     activeLayer.clearLayers();
 
@@ -317,7 +317,6 @@
         windyStore.set('overlay', 'wind');
         //Koordinaten Bishop
         map.setView(new L.LatLng(48.017909, 11.192358), 11);
-
         singleclick.on('windy-plugin-mff', async ev => {
             console.log('In onMount singleclick');
             Utility.checkOverlay();
@@ -363,12 +362,49 @@
         destroyed = true;
         console.log('Im onDestroy');
         popup.remove();
-        bcast.off('paramsChanged');
-        bcast.off('pluginOpened');
-        bcast.off('pluginClosed');
-        singleclick.off('windy-plugin-mff');
+        bcast.off('paramsChanged', onMount);
+        bcast.off('pluginOpened', onMount);
+        bcast.off('pluginClosed', onMount);
+        singleclick.emit('windy-plugin-mff', 'destroy');
+        //singleclick.off('windy-plugin-mff', onMount);
         map.removeControl(bcast);
+        windyStore.off('timestamp', upperwind.setTime);
+        windyStore.off('overlay', Utility.checkOverlay);
+        windyStore.off('product', upperwind.handleEvent);
     });
+
+    /*const closeCompletely = function () {
+    console.log('DA close completely');
+
+    clearTimeout(loggerTO);
+
+    removeGlobalCss();
+
+    pickerT.offDrag(fetchData);
+    picker.off('pickerOpened', fetchData);
+    picker.off('pickerMoved', pickerMoved);
+    pickerT.remLeftPlugin(name);
+    pickerT.remRightPlugin(name);
+
+    bcast.off('metricChanged', onMetricChanged);
+    store.off('timestamp', setTs);
+    store.off('product', setProd);
+
+    // click stuff
+    singleclick.release(name, "high");
+    singleclick.singleclick.off(name, pickerT.openMarker);
+    bcast.off('pluginOpened', onPluginOpened);
+    bcast.off('pluginClosed', onPluginClosed);
+
+    bcast.fire('rqstClose', name);
+
+    // other plugins will try to defocus this plugin.
+    delete thisPlugin.focus;
+    delete thisPlugin.defocus;
+
+    pickerT = null;  // in case plugin re-opened
+    hasHooks = false;
+};*/
 
     /* Assigns the Analysis to a location and a model*/
     function assignAnalysis(upperwind: UpperWind) {
