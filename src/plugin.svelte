@@ -160,17 +160,8 @@
     import { singleclick } from '@windy/singleclick';
     import { UpperWind } from './classes/UpperWind.class';
     import windyStore from '@windy/store';
-    // see https://www.npmjs.com/package/export-to-csv
-    import { mkConfig, generateCsv, asBlob } from 'export-to-csv';
     import { LatLon } from '@windycom/plugin-devtools/types/interfaces';
-    import { Utility } from './classes//Utility.class';
-
-    const Format = {
-        FMT_CSV: 1,
-        FMT_JSON: 2,
-        FMT_HEIDIS: 3,
-        FMT_ATAK: 4,
-    };
+    import { Utility } from './classes/Utility.class';
 
     let ready = false;
     let flightLevels: any[] = [];
@@ -191,7 +182,7 @@
 
     /* Take user settings for Table*/
     /* Settings for temperature*/
-    let temperatureUnit: string = Utility.findOutTemperatureUnit(273.15); //Kelvin in raw data
+    let temperatureUnit: string = Utility.findOutTemperatureUnit(273.15);
     let freezingLevelAt: number = 0;
     function freezingLevel() {
         if (temperatureUnit === '°C') {
@@ -204,15 +195,12 @@
     freezingLevelAt = freezingLevel();
 
     /* Settings for wind*/
-    let windUnit: string = Utility.findOutWindUnit(10); // m/s in raw data
-
-    let altitudeUnit: string = Utility.findOutAltitudeUnit(100); // m in raw data
-
+    let windUnit: string = Utility.findOutWindUnit(10);
+    let altitudeUnit: string = Utility.findOutAltitudeUnit(100);
     let settings = {
         increment: '500',
         referenceLevel: 'AGL',
     };
-
     let incrementquestions = [
         { text: '100' },
         { text: '200' },
@@ -220,9 +208,7 @@
         { text: '1000' },
         { text: '2000' },
     ];
-
     let referencelevelquestions = [{ text: 'AGL' }, { text: 'AMSL' }];
-
     let lowerAltitudeInput: string = '0';
     let upperAltitudeInput: string = '3000';
     let errorHandlerOutput: boolean = false;
@@ -231,12 +217,10 @@
     $: {
         upperwind._lowerLevel = lowerAltitudeInput;
         upperwind._upperLevel = upperAltitudeInput;
-
         errorHandlerOutput = false;
         errorHandlerOutput = upperwind._errorhandler;
         console.log('Errorhandler: ' + errorHandlerOutput);
 
-        /* create Arrays for mean winds*/
         const heightAGLArray = flightLevels.map(row => row.heightAGL);
         const heightMSLArray = flightLevels.map(row => row.height);
         const wind_uArray = flightLevels.map(row => row.wind_u);
@@ -274,7 +258,6 @@
             )[1];
         }
 
-        console.log('Unten: ' + upperwind._lowerLevel + ' Oben: ' + upperwind._upperLevel);
         upperwind._step = Number(settings.increment);
         upperwind._reference = settings.referenceLevel;
         const fl = upperwind.restratify();
@@ -285,25 +268,53 @@
 
     /* Add layer for lines to the map*/
     var activeLayer = L.featureGroup().addTo(map);
-    var popup = L.popup({ autoClose: false, closeOnClick: true, closeButton: true });
+    var popup = L.popup({ autoClose: false, closeOnClick: false, closeButton: false });
+
+    // Make the popup draggable
+    let draggablePopup: any;
+    async function makePopupDraggable() {
+        if (!draggablePopup) {
+            draggablePopup = new L.Draggable(popup._container, popup._wrapper);
+            draggablePopup.enable();
+
+            // Update position and fetch new data when dragging ends
+            draggablePopup.on('dragend', async function () {
+                const containerPoint = map.layerPointToContainerPoint(draggablePopup._newPos);
+                const latlng = map.containerPointToLatLng(containerPoint);
+                popup.setLatLng(latlng); // Update popup position
+                position = { lat: latlng.lat, lon: latlng.lng }; // Update position variable
+
+                // Show loading state
+                popup.setContent('Loading....');
+
+                // Fetch new weather data for the updated position
+                upperwind.setTime(windyStore.get('timestamp'));
+                await upperwind.handleEvent(position); // Fetch new data
+                assignAnalysis(upperwind); // Update UI with new data
+                popup.setContent(clickLocation); // Update popup content
+            });
+        }
+    }
 
     activeLayer.clearLayers();
 
     export const onopen = async (_params: { lat: any; lon: any }) => {
         if (!_params) {
-            return; // Ignore null _params and do not execute further
+            return;
         }
-        if (destroyed == true) return;
+        destroyed = false;
         bcast.on('pluginOpened', async () => {
             console.log('In onopen pluginOpened ');
+            if (destroyed == true) return;
             Utility.checkOverlay();
             popup
                 .setLatLng([_params.lat, _params.lon])
                 .setContent('Loading....')
                 .addTo(activeLayer)
                 .openOn(map);
+            makePopupDraggable(); // Enable dragging
             upperwind.setTime(windyStore.get('timestamp'));
-            await upperwind.handleEvent(_params); // Wait for handleEvent to complete
+            await upperwind.handleEvent(_params);
             assignAnalysis(upperwind);
             popup.setContent(clickLocation);
             map.setView(new L.LatLng(_params.lat, _params.lon), 11);
@@ -311,27 +322,25 @@
     };
 
     onMount(() => {
-        /** Eventhandler for the click on the map*/
         if (destroyed == true) return;
-
-        windyStore.set('overlay', 'wind');
-        //Koordinaten Bishop
-        map.setView(new L.LatLng(48.017909, 11.192358), 11);
         singleclick.on('windy-plugin-mff', async ev => {
             console.log('In onMount singleclick');
-            Utility.checkOverlay();
+            if (destroyed == false) {
+                Utility.checkOverlay();
+            }
             position = { lat: ev.lat, lon: ev.lon };
-            /* Create a Popup to show the clicked position*/
             popup
                 .setLatLng([position.lat, position.lon])
                 .setContent('Loading....')
                 .addTo(activeLayer)
                 .openOn(map);
-            await upperwind.handleEvent(ev); // Wait for handleEvent to complete
+            makePopupDraggable(); // Enable dragging
+            await upperwind.handleEvent(ev);
             assignAnalysis(upperwind);
             popup.setContent(clickLocation);
             map.setView(new L.LatLng(position.lat, position.lon), 11);
         });
+
         bcast.on('pluginOpened', async () => {
             if (position === undefined) return;
             upperwind.setTime(windyStore.get('timestamp'));
@@ -340,19 +349,28 @@
                 .setContent('Loading....')
                 .addTo(activeLayer)
                 .openOn(map);
-            await upperwind.handleEvent(position); // Wait for handleEvent to complete
+            makePopupDraggable(); // Enable dragging
+            await upperwind.handleEvent(position);
             assignAnalysis(upperwind);
             popup.setContent(clickLocation);
         });
-        /** Eventhandler for stepping forward or backward in time*/
+
+        // Handle timestamp or model changes
         bcast.on('paramsChanged', async () => {
             console.log('In onMount paramsChanged');
-            Utility.checkOverlay();
+            if (destroyed == false) {
+                Utility.checkOverlay();
+            }
             if (position === undefined) return;
+
+            // Update timestamp and re-fetch data (model handled internally by handleEvent)
             upperwind.setTime(windyStore.get('timestamp'));
-            await upperwind.handleEvent(position); // Wait for handleEvent to complete
+            popup.setContent('Loading....');
+            await upperwind.handleEvent(position); // Re-fetch data with current model and timestamp
             assignAnalysis(upperwind);
+            popup.setContent(clickLocation);
         });
+
         bcast.on('pluginClosed', async () => {
             popup.closePopup();
         });
@@ -362,52 +380,22 @@
         destroyed = true;
         console.log('Im onDestroy');
         popup.remove();
+        if (draggablePopup) {
+            draggablePopup.disable();
+            draggablePopup.off('dragend');
+        }
         bcast.off('paramsChanged', onMount);
         bcast.off('pluginOpened', onMount);
         bcast.off('pluginClosed', onMount);
-        singleclick.emit('windy-plugin-mff', 'destroy');
-        //singleclick.off('windy-plugin-mff', onMount);
+        singleclick.emit(' windy-plugin-mff', 'destroy');
         map.removeControl(bcast);
         windyStore.off('timestamp', upperwind.setTime);
         windyStore.off('overlay', Utility.checkOverlay);
         windyStore.off('product', upperwind.handleEvent);
     });
 
-    /*const closeCompletely = function () {
-    console.log('DA close completely');
-
-    clearTimeout(loggerTO);
-
-    removeGlobalCss();
-
-    pickerT.offDrag(fetchData);
-    picker.off('pickerOpened', fetchData);
-    picker.off('pickerMoved', pickerMoved);
-    pickerT.remLeftPlugin(name);
-    pickerT.remRightPlugin(name);
-
-    bcast.off('metricChanged', onMetricChanged);
-    store.off('timestamp', setTs);
-    store.off('product', setProd);
-
-    // click stuff
-    singleclick.release(name, "high");
-    singleclick.singleclick.off(name, pickerT.openMarker);
-    bcast.off('pluginOpened', onPluginOpened);
-    bcast.off('pluginClosed', onPluginClosed);
-
-    bcast.fire('rqstClose', name);
-
-    // other plugins will try to defocus this plugin.
-    delete thisPlugin.focus;
-    delete thisPlugin.defocus;
-
-    pickerT = null;  // in case plugin re-opened
-    hasHooks = false;
-};*/
-
-    /* Assigns the Analysis to a location and a model*/
-    function assignAnalysis(upperwind: UpperWind) {
+  /* Assigns the Analysis to a location and a model*/
+   function assignAnalysis(upperwind: UpperWind) {
         temperatureUnit = Utility.findOutTemperatureUnit(0);
         altitudeUnit = Utility.findOutAltitudeUnit(1000);
         windUnit = Utility.findOutWindUnit(10);
@@ -420,18 +408,17 @@
         );
 
         forecastDate = new Date(windyStore.get('timestamp'));
-        //Format the Date to ICAO Standards
         let year = forecastDate.getFullYear();
         let month = forecastDate.getMonth() + 1;
         let day = forecastDate.getDate();
         let hours = forecastDate.getHours();
         forecastDateString = year + '-' + month + '-' + day + ' ' + hours + ':00 loc ';
-
         forecastModel = upperwind.model;
         elevation =
             (upperwind.elevation * 3.28084).toFixed(0) + ' ft/ ' + upperwind.elevation + ' m';
         ready = true;
     }
+
     /** Download the Data  */
     // https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
     // "ES6+ version for 2021; no 1MB limit either:"
